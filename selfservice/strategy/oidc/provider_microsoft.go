@@ -77,11 +77,16 @@ func (m *ProviderMicrosoft) Exchange(ctx context.Context, code string, opts ...o
 		return nil, errors.WithStack(herodot.ErrMisconfiguration().WithReasonf("Unable to read `microsoft_client_assertion_file` of the `microsoft` oidc provider %s: %s", m.config.ID, err))
 	}
 
+	clientAssertion := strings.TrimSpace(string(assertion))
+	if clientAssertion == "" {
+		return nil, errors.WithStack(herodot.ErrMisconfiguration().WithReasonf("The `microsoft_client_assertion_file` of the `microsoft` oidc provider %s is empty", m.config.ID))
+	}
+
 	o.ClientSecret = ""
 	o.Endpoint.AuthStyle = oauth2.AuthStyleInParams
 	opts = append(opts,
 		oauth2.SetAuthURLParam("client_assertion_type", clientAssertionTypeJWTBearer),
-		oauth2.SetAuthURLParam("client_assertion", strings.TrimSpace(string(assertion))),
+		oauth2.SetAuthURLParam("client_assertion", clientAssertion),
 	)
 	return o.Exchange(ctx, code, opts...)
 }

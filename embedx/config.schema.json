@@ -557,6 +557,7 @@
           "title": "Microsoft client assertion file",
           "description": "Path to a file containing a JWT which is sent as `client_assertion` instead of `client_secret` when exchanging the authorization code. Use with Microsoft Entra ID workload identity federation, e.g. the projected Kubernetes service account token from Azure Workload Identity. The file is re-read on every exchange, so rotated tokens are picked up. Only supported by the `microsoft` provider. When set, `client_secret` is optional.",
           "type": "string",
+          "minLength": 1,
           "examples": ["/var/run/secrets/azure/tokens/azure-identity-token"]
         },
         "subject_source": {

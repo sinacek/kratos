@@ -80,6 +80,9 @@ func TestProviderMicrosoftExchange(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "at", token.AccessToken)
 		assert.Equal(t, "https://login.microsoftonline.com/organizations/oauth2/v2.0/token", tr.req.URL.String())
+		_, basicSecret, hasBasicAuth := tr.req.BasicAuth()
+		assert.True(t, (hasBasicAuth && basicSecret == "secret") || tr.form.Get("client_secret") == "secret",
+			"client_secret must be sent either as HTTP Basic auth or as a form value")
 		assert.Empty(t, tr.form.Get("client_assertion"))
 		assert.Empty(t, tr.form.Get("client_assertion_type"))
 	})
@@ -99,7 +102,8 @@ func TestProviderMicrosoftExchange(t *testing.T) {
 		assert.Equal(t, "client-id", tr.form.Get("client_id"))
 		assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", tr.form.Get("client_assertion_type"))
 		assert.Equal(t, "header.payload.signature", tr.form.Get("client_assertion"))
-		assert.Empty(t, tr.form.Get("client_secret"))
+		_, hasClientSecret := tr.form["client_secret"]
+		assert.False(t, hasClientSecret, "client_secret must not be sent when a client assertion is used")
 		assert.Empty(t, tr.req.Header.Get("Authorization"))
 	})
 
@@ -117,6 +121,18 @@ func TestProviderMicrosoftExchange(t *testing.T) {
 		tr, _, err = exchange(t, c)
 		require.NoError(t, err)
 		assert.Equal(t, "second", tr.form.Get("client_assertion"))
+	})
+
+	t.Run("case=fails with misconfiguration when assertion file is empty", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("  \n"), 0o600))
+		c := base()
+		c.ClientAssertionFile = path
+
+		tr, _, err := exchange(t, c)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, herodot.ErrMisconfiguration())
+		assert.Nil(t, tr.req, "no request must be sent to the token endpoint")
 	})
 
 	t.Run("case=fails with misconfiguration when assertion file is missing", func(t *testing.T) {
